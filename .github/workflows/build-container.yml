@@ -2,6 +2,7 @@ name: Build and Publish Docker Image
 
 on:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,7 +23,7 @@ jobs:
 
       # Minimal test, no arguments provided beyond what is required
       - name: Test - Minimal build
-        uses: ../actions/build-container-action/
+        uses: ./../actions/build-container-action/
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           dockerfile: ./Dockerfile
