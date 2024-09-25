@@ -1,0 +1,65 @@
+name: Build and Publish Docker Image
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build:
+    name: Build Container
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.1
+
+      - name: Calculate Semantic Version
+        id: semver
+        uses: SelectHealth/actions-semantic-version@v1.0.2
+
+      # Minimal test, no arguments provided beyond what is required
+      - name: Test - Minimal build
+        uses: ../actions/build-container-action/
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          dockerfile: ./Dockerfile
+          build-context: .
+
+      # Kitchen sink test, all arguments being passed.
+      - name: Test - All Arguments
+        uses: ./
+        with:
+          dockerfile: test/custom.Dockerfile
+          build-context: test
+          image-suffix: validation
+          version: ${{ steps.semver.outputs.semVer }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Testing that linting is working, validate that this step fails
+      - name: Test - Failing Linting
+        id: lint
+        continue-on-error: true
+        uses: ./
+        with:
+          dockerfile: test/lint-test.Dockerfile
+          build-context: test
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate Linting Failed
+        if: steps.lint.outcome != 'failure'
+        shell: bash
+        run: |
+          echo "::error::expected linting failure, but it didn't fail." && exit 1
+
+      # Testing that linting is working with customized rules, validate that this step succeeds
+      - name: Create linting config
+        run: |
+          mv test/.hadolint.yaml .hadolint.yaml
+      - name: Test - Linting with Custom Configuration
+        uses: ./
+        with:
+          dockerfile: test/lint-test.Dockerfile
+          build-context: test
+          github-token: ${{ secrets.GITHUB_TOKEN }}
